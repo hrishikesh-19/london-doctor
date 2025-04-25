@@ -20,13 +20,45 @@ with open("prompt.txt", "r") as file:
 st.title("💬 AI-Powered Patient Report Management")
 
 # Utility: Suggest prompts based on AI response (can enhance later)
-def get_prompt_suggestions(last_message):
+def get_prompt_suggestions(user_input, ai_response):
+    prompt = f"""
+You are a helpful assistant that helps a user navigate medical reports. Based on the following user query and the AI response, suggest 3 to 5 follow-up questions or prompts that the user might ask next.
+
+Format your output as a Python list of strings.
+
+User Message:
+\"\"\"{user_input}\"\"\"
+
+AI Response:
+\"\"\"{ai_response}\"\"\"
+
+Give only a Python list like:
+["Prompt 1", "Prompt 2", "Prompt 3", ...]
+"""
+
+    # Use Gemini to generate prompt suggestions
+    suggestion_chat = client.chats.create(
+        model="gemini-2.0-flash",
+        config=types.GenerateContentConfig(system_instruction="You are a medical assistant prompt suggester.",response_mime_type="application/json")
+    )
+
+    result = suggestion_chat.send_message(prompt)
+    print(result.text)
+
+    # Extract the list from LLM output safely
+    try:
+        suggestions = eval(result.text.strip())
+        if isinstance(suggestions, list):
+            return suggestions
+    except Exception as e:
+        print(f"Error extracting suggestions: {e}")
+        pass
+    
+    # Fallback
     return [
         "Summarize patient condition",
         "List all diagnosis date-wise",
         "Show prescribed treatments",
-        "Extract CT scan findings",
-        "What was the first consultation date?"
     ]
 
 # Initialize session state
@@ -80,7 +112,8 @@ if user_input:
         st.markdown(bot_response)
 
     # Always generate suggestions after any model response
-    st.session_state.suggestions = get_prompt_suggestions(bot_response)
+    st.session_state.suggestions = st.session_state.suggestions = get_prompt_suggestions(user_input, bot_response)
+
 
     st.rerun()
 
@@ -103,7 +136,7 @@ if st.session_state.selected_prompt:
         st.markdown(bot_response)
 
     # 🔁 Generate new suggestions after this Gemini response too!
-    st.session_state.suggestions = get_prompt_suggestions(bot_response)
+    st.session_state.suggestions = st.session_state.suggestions = get_prompt_suggestions(prompt, bot_response)
 
     # Reset prompt selection
     st.session_state.selected_prompt = None
